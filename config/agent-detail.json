@@ -1,0 +1,23 @@
+{
+  "name": "AsistentePersonal",
+  "version": "1.0.0",
+  "description": "Un agente de IA que puede ayudar con tareas generales usando LM Studio",
+  "author": "Mauro Stepanoski",
+  "capabilities": [
+    "text-processing",
+    "question-answering",
+    "task-assistance",
+    "conversation"
+  ],
+  "metadata": {
+    "model": "deepseek/deepseek-r1-0528-qwen3-8b",
+    "maxTokens": 2048,
+    "temperature": 0.7,
+    "supportedLanguages": ["es", "en"]
+  },
+  "endpoints": {
+    "health": "/health",
+    "run": "/run",
+    "capabilities": "/capabilities"
+  }
+}
