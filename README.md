@@ -1,39 +1,49 @@
 # ACP Agent with TypeScript & Bun
 
-[![TypeScript](https://img.shields.io/badge/TypeScript-5.8.3-blue.svg)](https://www.typescriptlang.org/)
-[![Bun](https://img.shields.io/badge/Bun-1.2.13-orange.svg)](https://bun.sh/)
-[![Node.js](https://img.shields.io/badge/Node.js-22.x-green.svg)](https://nodejs.org/)
-[![Docker](https://img.shields.io/badge/Docker-Ready-2496ED.svg)](https://www.docker.com/)
-[![Tests](https://img.shields.io/badge/Tests-86%20passing-brightgreen.svg)](#testing)
+[](https://www.typescriptlang.org/)
+[](https://bun.sh/)
+[](https://nodejs.org/)
+[](https://www.docker.com/)
+[](https://www.google.com/search?q=%23testing)
+[](https://www.google.com/search?q=./LICENSE)
 
 A production-ready **Agent Communication Protocol (ACP)** implementation with dual runtime support (Node.js & Bun), structured logging, comprehensive testing, and Docker deployment.
 
+-----
+
 > **📚 Learn More:**
-> - Tutorial del curso: https://learn.deeplearning.ai/courses/acp-agent-communication-protocol/lesson/ldber/acp-core-principles
-> - Documentación oficial de ACP: https://agentcommunicationprotocol.dev/introduction/welcome
+>
+>   - Course Tutorial: [https://learn.deeplearning.ai/courses/acp-agent-communication-protocol/lesson/ldber/acp-core-principles](https://learn.deeplearning.ai/courses/acp-agent-communication-protocol/lesson/ldber/acp-core-principles)
+>   - Official ACP Documentation: [https://agentcommunicationprotocol.dev/introduction/welcome](https://agentcommunicationprotocol.dev/introduction/welcome)
+
+-----
 
 ## 🚀 Features
 
-- **Dual Runtime Support**: Run with Node.js or Bun
-- **TypeScript First**: Full type safety and modern development experience
-- **LM Studio Integration**: Seamless AI model integration
-- **Structured Logging**: Production-ready logging with Pino
-- **Comprehensive Testing**: Unit & integration tests with 86 passing tests
-- **Docker Ready**: Multi-stage builds with production optimization
-- **RESTful API**: Complete REST API with health checks and streaming
-- **Hot Reloading**: Development mode with auto-restart
-- **ESLint + Prettier**: Code quality and formatting
-- **Security Hardened**: Helmet, CORS, and security best practices
+  - **Dual Runtime Support**: Run with Node.js or Bun
+  - **TypeScript First**: Full type safety and modern development experience
+  - **LM Studio Integration**: Seamless AI model integration
+  - **Structured Logging**: Production-ready logging with Pino
+  - **Comprehensive Testing**: Unit & integration tests with 86 passing tests
+  - **Docker Ready**: Multi-stage builds with production optimization
+  - **RESTful API**: Complete REST API with health checks and streaming
+  - **Hot Reloading**: Development mode with auto-restart
+  - **ESLint + Prettier**: Code quality and formatting
+  - **Security Hardened**: Helmet, CORS, and security best practices
+
+-----
 
 ## 📋 Prerequisites
 
-- **Node.js 18+** or **Bun 1.2+**
-- **LM Studio** running on `http://localhost:1234`
-- **Docker** (optional, for containerized deployment)
+  - **Node.js 18+** or **Bun 1.2+**
+  - **LM Studio** running on `http://localhost:1234`
+  - **Docker** (optional, for containerized deployment)
+
+-----
 
 ## 🏃‍♂️ Quick Start
 
-### 1. Installation
+### 1\. Installation
 
 ```bash
 git clone <repository-url>
@@ -42,19 +52,19 @@ cp .env.example .env
 bun install  # or npm install
 ```
 
-### 2. Configure LM Studio
+### 2\. Configure LM Studio
 
 #### Start LM Studio Server
 
-Siguiendo la [documentación oficial](https://lmstudio.ai/docs/app/api/tools):
+Following the [official documentation](https://lmstudio.ai/docs/app/api/tools):
 
-1. Abre LM Studio
-2. Ve a la pestaña "Local Server"  
-3. Carga un modelo (ej: Llama 3.2 3B Instruct)
-4. Inicia el servidor local: `lms server start`
-5. Verifica que esté corriendo: `curl http://localhost:1234/v1/models`
+1.  Open LM Studio
+2.  Go to "Local Server" tab
+3.  Load a model (e.g: Llama 3.2 3B Instruct)
+4.  Start local server: `lms server start`
+5.  Verify it's running: `curl http://localhost:1234/v1/models`
 
-### 3. Run the Agent
+### 3\. Run the Agent
 
 ```bash
 # With Bun (recommended)
@@ -67,11 +77,13 @@ bun run start
 bun run dev
 ```
 
-### 4. Test the API
+### 4\. Test the API
 
 ```bash
 curl http://localhost:3000/api/v1/health
 ```
+
+-----
 
 ## 🛠️ Development
 
@@ -125,6 +137,8 @@ src/
 └── index.ts            # Application entry point
 ```
 
+-----
+
 ## 🔧 Configuration
 
 ### Environment Variables
@@ -145,9 +159,9 @@ Edit `config/agent-detail.json`:
 
 ```json
 {
-  "name": "AsistentePersonal",
+  "name": "PersonalAssistant",
   "version": "1.0.0",
-  "description": "Un agente de IA que puede ayudar con tareas generales",
+  "description": "An AI agent that can help with general tasks",
   "capabilities": ["text-processing", "question-answering", "task-assistance", "conversation"],
   "metadata": {
     "model": "llama-3.2-3b-instruct",
@@ -156,6 +170,8 @@ Edit `config/agent-detail.json`:
   }
 }
 ```
+
+-----
 
 ## 📚 API Examples
 
@@ -177,7 +193,7 @@ curl http://localhost:3000/api/v1/agent | jq
 curl -X POST http://localhost:3000/api/v1/run \
   -H "Content-Type: application/json" \
   -d '{
-    "input": "¿Cómo funciona la fotosíntesis?",
+    "input": "How does photosynthesis work?",
     "type": "question",
     "context": {
       "temperature": 0.3,
@@ -192,7 +208,7 @@ curl -X POST http://localhost:3000/api/v1/run \
 curl -X POST http://localhost:3000/api/v1/run \
   -H "Content-Type: application/json" \
   -d '{
-    "input": "Ayúdame a planificar una presentación sobre IA",
+    "input": "Help me plan a presentation about AI",
     "type": "task"
   }' | jq
 ```
@@ -205,12 +221,14 @@ curl -X POST http://localhost:3000/api/v1/run \
   -d '{
     "type": "conversation",
     "messages": [
-      {"role": "user", "content": "Hola, necesito ayuda"},
-      {"role": "assistant", "content": "¡Hola! Estoy aquí para ayudarte"},
-      {"role": "user", "content": "¿Puedes explicarme qué es TypeScript?"}
+      {"role": "user", "content": "Hello, I need help"},
+      {"role": "assistant", "content": "Hello! I am here to help you"},
+      {"role": "user", "content": "Can you explain what TypeScript is?"}
     ]
   }' | jq
 ```
+
+-----
 
 ## 🧪 Testing
 
@@ -227,6 +245,8 @@ bun test
 bun run test:integration
 # Automatically starts server, runs E2E tests, cleans up
 ```
+
+-----
 
 ## 🐳 Docker Deployment
 
@@ -249,7 +269,9 @@ docker-compose --profile monitoring up -d
 docker-compose up -d --scale acp-agent=3
 ```
 
-See [deployment.md](./deployment.md) for detailed deployment instructions.
+See [deployment.md](https://www.google.com/search?q=./deployment.md) for detailed deployment instructions.
+
+-----
 
 ## 🔍 Monitoring & Observability
 
@@ -270,22 +292,24 @@ See [deployment.md](./deployment.md) for detailed deployment instructions.
 
 ### Health Monitoring
 
-- Health endpoint: `/api/v1/health`
-- Metrics: Memory usage, uptime, LLM status
-- Docker health checks included
+  - Health endpoint: `/api/v1/health`
+  - Metrics: Memory usage, uptime, LLM status
+  - Docker health checks included
+
+-----
 
 ## 🤝 Contributing
 
-See [CONTRIBUTING.md](./CONTRIBUTING.md) for detailed contribution guidelines.
+See [CONTRIBUTING.md](https://www.google.com/search?q=./CONTRIBUTING.md) for detailed contribution guidelines.
 
 ### Quick Contribution Steps
 
-1. Fork the repository
-2. Create a feature branch: `git checkout -b feat/amazing-feature`
-3. Make your changes with tests
-4. Follow [Conventional Commits](https://conventionalcommits.org/)
-5. Run tests: `bun test && bun run test:integration`
-6. Submit a pull request
+1.  Fork the repository
+2.  Create a feature branch: `git checkout -b feat/amazing-feature`
+3.  Make your changes with tests
+4.  Follow [Conventional Commits](https://conventionalcommits.org/)
+5.  Run tests: `bun test && bun run test:integration`
+6.  Submit a pull request
 
 ### Commit Message Format
 
@@ -300,50 +324,49 @@ We use [Conventional Commits](https://conventionalcommits.org/) for clear and st
 ```
 
 Examples:
-- `feat: add streaming response support`
-- `fix(agent): handle empty input gracefully`
-- `docs: update API documentation`
-- `test: add integration tests for conversation flow`
+
+  - `feat: add streaming response support`
+  - `fix(agent): handle empty input gracefully`
+  - `docs: update API documentation`
+  - `test: add integration tests for conversation flow`
+
+-----
 
 ## 📊 Performance
 
-- **Cold Start**: ~500ms (Bun), ~800ms (Node.js)
-- **Request Latency**: ~50ms (excluding LLM processing)
-- **Memory Usage**: ~150MB baseline
-- **Concurrent Requests**: 100+ with proper LLM backend
+  - **Cold Start**: \~500ms (Bun), \~800ms (Node.js)
+  - **Request Latency**: \~50ms (excluding LLM processing)
+  - **Memory Usage**: \~150MB baseline
+  - **Concurrent Requests**: 100+ with proper LLM backend
+
+-----
 
 ## 🔒 Security
 
-- **Helmet**: Security headers
-- **CORS**: Configurable cross-origin requests
-- **Input Validation**: Zod schema validation
-- **Rate Limiting**: Built-in support
-- **Docker**: Non-root user, minimal image
-- **Environment**: No secrets in code
+  - **Helmet**: Security headers
+  - **CORS**: Configurable cross-origin requests
+  - **Input Validation**: Zod schema validation
+  - **Rate Limiting**: Built-in support
+  - **Docker**: Non-root user, minimal image
+  - **Environment**: No secrets in code
 
-## 🗺️ Roadmap
-
-- [ ] WebSocket support for real-time communication
-- [ ] Plugin system for custom capabilities
-- [ ] Multi-model support (OpenAI, Anthropic, etc.)
-- [ ] Conversation memory and context persistence
-- [ ] Rate limiting and authentication
-- [ ] Prometheus metrics integration
-- [ ] Kubernetes deployment manifests
+-----
 
 ## 📄 License
 
-MIT License - see [LICENSE](./LICENSE) for details.
+MIT License - see [LICENSE](https://www.google.com/search?q=./LICENSE) for details.
+
+-----
 
 ## 🙏 Acknowledgments
 
-- [LM Studio](https://lmstudio.ai/) for local LLM hosting
-- [Bun](https://bun.sh/) for the amazing JavaScript runtime
-- [Pino](https://getpino.io/) for structured logging
-- [Zod](https://zod.dev/) for runtime type validation
+  - [LM Studio](https://lmstudio.ai/) for local LLM hosting
+  - [Bun](https://bun.sh/) for the amazing JavaScript runtime
+  - [Pino](https://getpino.io/) for structured logging
+  - [Zod](https://zod.dev/) for runtime type validation
 
----
+-----
 
-**🚀 Ready to build amazing AI agents? Get started now!**
+**🚀 Ready to build amazing AI agents? Get started now\!**
 
-For questions, issues, or contributions, please check our [Contributing Guide](./CONTRIBUTING.md) or open an issue.
+For questions, issues, or contributions, please check our [Contributing Guide](https://www.google.com/search?q=./CONTRIBUTING.md) or open an issue.
