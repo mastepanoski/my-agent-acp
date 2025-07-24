@@ -1,27 +1,5 @@
-export interface AgentDetail {
-  name: string;
-  version: string;
-  description: string;
-  author: string;
-  capabilities: string[];
-  metadata: {
-    model: string;
-    maxTokens: number;
-    temperature: number;
-    supportedLanguages: string[];
-  };
-  endpoints: {
-    health: string;
-    run: string;
-    capabilities: string;
-  };
-}
-
-export interface AgentCapabilitiesInfo {
-  capabilities: string[];
-  description: string;
-  supportedModes: string[];
-}
+// Legacy types - these are being replaced by ACP SDK types
+// Keeping for backward compatibility during migration
 
 export interface AgentHealthStatus {
   status: 'healthy' | 'degraded' | 'unhealthy';
@@ -36,9 +14,3 @@ export interface AgentHealthStatus {
   memory: NodeJS.MemoryUsage;
   error?: string;
 }
-
-export type RequestType =
-  | 'question'
-  | 'task'
-  | 'conversation'
-  | 'text-processing';

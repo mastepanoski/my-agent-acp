@@ -4,7 +4,7 @@ import type {
   LLMResponse,
   ProcessingContext,
 } from '../types/llm.js';
-import type { AgentCapabilitiesInfo } from '../types/agent.js';
+// Legacy type removed - using ACP-compliant capabilities structure
 
 export class AgentCapabilities {
   private llmClient: LMStudioClient;
@@ -95,12 +95,16 @@ export class AgentCapabilities {
     });
   }
 
-  getCapabilities(): AgentCapabilitiesInfo {
+  getCapabilities(): {
+    capabilities: string[];
+    description: string;
+    supportedModes: string[];
+  } {
     return {
       capabilities: this.capabilities,
       description:
-        'Agente capaz de procesar texto, responder preguntas, asistir con tareas y mantener conversaciones',
-      supportedModes: ['synchronous', 'asynchronous', 'streaming'],
+        'ACP-compliant agent capable of text processing, question answering, task assistance, and conversation',
+      supportedModes: ['sync', 'async', 'stream'],
     };
   }
 }

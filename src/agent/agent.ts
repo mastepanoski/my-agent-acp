@@ -1,107 +1,173 @@
 import type { LMStudioClient } from '../utils/llm-client.js';
+import type { AgentHealthStatus } from '../types/agent.js';
 import type {
-  AgentDetail,
-  AgentHealthStatus,
-  RequestType,
-} from '../types/agent.js';
-import type { ACPRequest, ACPResponse, ACPRunHistory } from '../types/acp.js';
+  Message,
+  MessagePart,
+  Run,
+  RunId,
+  SessionId,
+  AgentManifest,
+  Event,
+} from '../types/acp.js';
 import type { LLMResponse } from '../types/llm.js';
 import { AgentCapabilities } from './capabilities.js';
-import { ACPRequestSchema } from '../types/acp.js';
-import {
-  agentLogger,
-  logError,
-  logAgentExecution,
-  logAgentResult,
-} from '../utils/logger.js';
+import { agentLogger, logError, logAgentResult } from '../utils/logger.js';
 
 export class ACPAgent {
   private llmClient: LMStudioClient;
-  private agentDetail: AgentDetail;
+  private agentManifest: AgentManifest;
   private capabilities: AgentCapabilities;
-  private runHistory: Map<string, ACPRunHistory>;
-  private runCounter: number;
+  private runs: Map<RunId, Run>;
+  private runEvents: Map<RunId, Event[]>;
+  private sessions: Map<SessionId, { runs: RunId[]; createdAt: Date }>;
 
-  constructor(llmClient: LMStudioClient, agentDetail: AgentDetail) {
+  constructor(llmClient: LMStudioClient, manifest?: Partial<AgentManifest>) {
     this.llmClient = llmClient;
-    this.agentDetail = agentDetail;
     this.capabilities = new AgentCapabilities(llmClient);
-    this.runHistory = new Map();
-    this.runCounter = 0;
+    this.runs = new Map();
+    this.runEvents = new Map();
+    this.sessions = new Map();
+
+    // Create default ACP-compliant agent manifest
+    this.agentManifest = {
+      name: manifest?.name || 'my-agent',
+      description:
+        manifest?.description || 'ACP-compliant AI agent powered by LM Studio',
+      input_content_types: manifest?.input_content_types || [
+        'text/plain',
+        'application/json',
+      ],
+      output_content_types: manifest?.output_content_types || ['text/plain'],
+      metadata: {
+        programming_language: 'TypeScript',
+        framework: 'Custom',
+        natural_languages: ['en', 'es'],
+        capabilities: [
+          {
+            name: 'Text Processing',
+            description: 'Process and analyze text content',
+          },
+          {
+            name: 'Question Answering',
+            description: 'Answer questions based on provided context',
+          },
+          {
+            name: 'Task Assistance',
+            description: 'Help with various tasks and problem-solving',
+          },
+        ],
+        author: {
+          name: 'Mauro Stepanoski',
+          email: null,
+          url: null,
+        },
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+        ...manifest?.metadata,
+      },
+    };
   }
 
-  async run(request: ACPRequest): Promise<ACPResponse> {
-    // Validar request usando Zod
-    const validationResult = ACPRequestSchema.safeParse(request);
-    if (!validationResult.success) {
-      throw new Error(`Request inválido: ${validationResult.error.message}`);
-    }
-
-    const runId = this.generateRunId();
-    const startTime = Date.now();
+  // ACP-compliant run method
+  async runACP(
+    input: Message[],
+    runId: RunId,
+    sessionId: SessionId
+  ): Promise<Run> {
+    const startTime = new Date();
 
     try {
-      // Registrar el inicio de la ejecución
-      this.runHistory.set(runId, {
-        id: runId,
-        status: 'in_progress',
-        startTime,
-        request: request,
-      });
-
-      logAgentExecution(
-        runId,
-        request.type || 'generic',
-        request.input || request.message || 'conversation',
-        { requestId: runId }
-      );
-
-      let result: LLMResponse;
-
-      // Determinar el tipo de tarea basado en el input
-      if (request.type) {
-        result = await this.handleTypedRequest(request);
-      } else {
-        result = await this.handleGenericRequest(request);
+      // Ensure session exists
+      if (!this.sessions.has(sessionId)) {
+        this.sessions.set(sessionId, { runs: [], createdAt: new Date() });
       }
 
-      // Actualizar el historial con el resultado
-      const runRecord: ACPRunHistory = {
-        ...this.runHistory.get(runId)!,
-        status: 'completed',
-        endTime: Date.now(),
-        result: result,
-        duration: Date.now() - startTime,
+      // Create initial run object
+      const run: Run = {
+        agent_name: this.agentManifest.name,
+        session_id: sessionId,
+        run_id: runId,
+        status: 'in-progress',
+        await_request: null,
+        output: [],
+        error: null,
+        created_at: startTime.toISOString(),
+        finished_at: null,
       };
-      this.runHistory.set(runId, runRecord);
 
-      const response = {
-        runId,
-        status: 'completed',
-        result: result.content,
-        metadata: {
-          duration: Date.now() - startTime,
-          usage: result.usage
-            ? {
-                promptTokens: result.usage.prompt_tokens,
-                completionTokens: result.usage.completion_tokens,
-                totalTokens: result.usage.total_tokens,
-              }
-            : {},
-          model: this.agentDetail.metadata.model,
-        },
-      } as ACPResponse;
+      // Store run and add to session
+      this.runs.set(runId, run);
+      this.runEvents.set(runId, []);
+      this.sessions.get(sessionId)!.runs.push(runId);
 
-      // Log successful completion
-      logAgentResult(runId, true, Date.now() - startTime, {
-        tokens: result.usage,
-        model: this.agentDetail.metadata.model,
+      // Emit run created event
+      this.emitEvent(runId, {
+        type: 'run.created',
+        run,
       });
 
-      return response;
+      // Emit run in-progress event
+      this.emitEvent(runId, {
+        type: 'run.in-progress',
+        run: { ...run, status: 'in-progress' },
+      });
+
+      // Convert ACP Messages to LLM format and process
+      const llmMessages = this.convertACPMessagesToLLM(input);
+      const llmResponse = await this.processWithLLM(llmMessages);
+
+      // Convert LLM response back to ACP Message format
+      const outputMessages = this.convertLLMResponseToACP(llmResponse);
+
+      // Update run with results
+      const completedRun: Run = {
+        ...run,
+        status: 'completed',
+        output: outputMessages,
+        finished_at: new Date().toISOString(),
+      };
+
+      this.runs.set(runId, completedRun);
+
+      // Emit completion event
+      this.emitEvent(runId, {
+        type: 'run.completed',
+        run: completedRun,
+      });
+
+      logAgentResult(runId, true, Date.now() - startTime.getTime(), {
+        tokens: llmResponse.usage,
+        outputLength: outputMessages.length,
+      });
+
+      return completedRun;
     } catch (error) {
       const errorMessage =
-        error instanceof Error ? error.message : 'Error desconocido';
+        error instanceof Error ? error.message : 'Unknown error';
+
+      const failedRun: Run = {
+        agent_name: this.agentManifest.name,
+        session_id: sessionId,
+        run_id: runId,
+        status: 'failed',
+        await_request: null,
+        output: [],
+        error: {
+          code: 'server_error',
+          message: errorMessage,
+          data: null,
+        },
+        created_at: startTime.toISOString(),
+        finished_at: new Date().toISOString(),
+      };
+
+      this.runs.set(runId, failedRun);
+
+      // Emit failed event
+      this.emitEvent(runId, {
+        type: 'run.failed',
+        run: failedRun,
+      });
 
       logError(
         agentLogger,
@@ -109,107 +175,141 @@ export class ACPAgent {
         error as Error,
         {
           runId,
-          duration: Date.now() - startTime,
+          sessionId,
+          duration: Date.now() - startTime.getTime(),
         }
       );
 
-      // Log failed execution
-      logAgentResult(runId, false, Date.now() - startTime, {
-        error: errorMessage,
-      });
-
-      const runRecord: ACPRunHistory = {
-        ...this.runHistory.get(runId)!,
-        status: 'failed',
-        endTime: Date.now(),
-        error: errorMessage,
-      };
-      this.runHistory.set(runId, runRecord);
-
-      return {
-        runId,
-        status: 'failed',
-        error: errorMessage,
-        metadata: {
-          duration: Date.now() - startTime,
-        },
-      };
+      return failedRun;
     }
   }
 
-  private async handleTypedRequest(request: ACPRequest): Promise<LLMResponse> {
-    const input = request.input || request.message || '';
-    const context = request.context || {};
+  private convertACPMessagesToLLM(
+    messages: Message[]
+  ): Array<{ role: string; content: string }> {
+    return messages.map(message => {
+      // Extract text content from message parts
+      const textContent = message.parts
+        .filter(
+          part => part.content_type && part.content_type.startsWith('text/')
+        )
+        .map(part => part.content || '')
+        .join('\n');
 
-    switch (request.type as RequestType) {
-      case 'question':
-        return await this.capabilities.answerQuestion(input, context);
+      // Map ACP roles to LLM roles
+      let role = 'user';
+      if (message.role.startsWith('agent')) {
+        role = 'assistant';
+      } else if (message.role === 'user') {
+        role = 'user';
+      }
 
-      case 'task':
-        return await this.capabilities.assistWithTask(input, context);
-
-      case 'conversation':
-        return await this.capabilities.continueConversation(
-          request.messages || [],
-          context
-        );
-
-      case 'text-processing':
-      default:
-        return await this.capabilities.processTextTask(input, context);
-    }
+      return { role, content: textContent };
+    });
   }
 
-  private async handleGenericRequest(
-    request: ACPRequest
+  private convertLLMResponseToACP(llmResponse: LLMResponse): Message[] {
+    const messagePart: MessagePart = {
+      content_type: 'text/plain',
+      content: llmResponse.content,
+      content_encoding: 'plain',
+      metadata: null,
+    };
+
+    const message: Message = {
+      role: `agent/${this.agentManifest.name}`,
+      parts: [messagePart],
+      created_at: new Date().toISOString(),
+      completed_at: new Date().toISOString(),
+    };
+
+    return [message];
+  }
+
+  private async processWithLLM(
+    messages: Array<{ role: string; content: string }>
   ): Promise<LLMResponse> {
-    const input = request.input || request.message || '';
+    // Use existing capabilities to process the messages
+    if (messages.length === 1) {
+      const content = messages[0].content;
+      return await this.capabilities.processTextTask(content, {});
+    } else {
+      // Convert to legacy format for capabilities
+      const legacyMessages = messages.map(msg => ({
+        role: msg.role as 'system' | 'user' | 'assistant',
+        content: msg.content,
+      }));
+      return await this.capabilities.continueConversation(legacyMessages, {});
+    }
+  }
 
-    // Análisis simple del input para determinar el tipo de tarea
-    if (this.isQuestion(input)) {
-      return await this.capabilities.answerQuestion(input, request.context);
+  private emitEvent(runId: RunId, event: Event): void {
+    const events = this.runEvents.get(runId) || [];
+    events.push(event);
+    this.runEvents.set(runId, events);
+  }
+
+  // ACP-compliant getter methods
+  getRun(runId: RunId): Run | null {
+    return this.runs.get(runId) || null;
+  }
+
+  getRunEvents(runId: RunId): Event[] | null {
+    return this.runEvents.get(runId) || null;
+  }
+
+  async cancelRun(runId: RunId): Promise<Run | null> {
+    const run = this.runs.get(runId);
+    if (!run) return null;
+
+    if (
+      run.status === 'completed' ||
+      run.status === 'failed' ||
+      run.status === 'cancelled'
+    ) {
+      return run; // Already finished
     }
 
-    if (this.isTaskRequest(input)) {
-      return await this.capabilities.assistWithTask(input, request.context);
-    }
+    const cancelledRun: Run = {
+      ...run,
+      status: 'cancelled',
+      finished_at: new Date().toISOString(),
+    };
 
-    return await this.capabilities.processTextTask(input, request.context);
+    this.runs.set(runId, cancelledRun);
+
+    this.emitEvent(runId, {
+      type: 'run.cancelled',
+      run: cancelledRun,
+    });
+
+    return cancelledRun;
   }
 
-  private isQuestion(input: string): boolean {
-    return (
-      input.includes('?') ||
-      input.toLowerCase().startsWith('qué') ||
-      input.toLowerCase().startsWith('cómo') ||
-      input.toLowerCase().startsWith('cuál') ||
-      input.toLowerCase().startsWith('cuándo') ||
-      input.toLowerCase().startsWith('dónde') ||
-      input.toLowerCase().startsWith('por qué')
-    );
+  async resumeRun(runId: RunId, _awaitResume: unknown): Promise<Run | null> {
+    const run = this.runs.get(runId);
+    if (!run || run.status !== 'awaiting') return null;
+
+    // TODO: Implement proper resume logic based on await_resume payload
+    // For now, just mark as completed
+    const resumedRun: Run = {
+      ...run,
+      status: 'completed',
+      finished_at: new Date().toISOString(),
+    };
+
+    this.runs.set(runId, resumedRun);
+
+    this.emitEvent(runId, {
+      type: 'run.completed',
+      run: resumedRun,
+    });
+
+    return resumedRun;
   }
 
-  private isTaskRequest(input: string): boolean {
-    return (
-      input.toLowerCase().includes('ayuda') ||
-      input.toLowerCase().includes('ayúdame') ||
-      input.toLowerCase().includes('necesito') ||
-      input.toLowerCase().includes('planifica') ||
-      input.toLowerCase().includes('organiza')
-    );
-  }
-
-  private generateRunId(): string {
-    this.runCounter++;
-    return `run-${Date.now()}-${this.runCounter}`;
-  }
-
-  getRunStatus(runId: string): ACPRunHistory | null {
-    return this.runHistory.get(runId) || null;
-  }
-
-  getAgentDetail(): AgentDetail {
-    return this.agentDetail;
+  getAgentManifest(): AgentManifest {
+    return this.agentManifest;
   }
 
   getCapabilities() {
@@ -221,8 +321,8 @@ export class ACPAgent {
       const llmHealth = await this.llmClient.checkHealth();
       return {
         status: llmHealth.status === 'healthy' ? 'healthy' : 'degraded',
-        agent: this.agentDetail.name,
-        version: this.agentDetail.version,
+        agent: this.agentManifest.name,
+        version: '1.0.0', // TODO: Get from manifest
         llm: llmHealth,
         uptime: process.uptime(),
         memory: process.memoryUsage(),
@@ -232,8 +332,8 @@ export class ACPAgent {
         error instanceof Error ? error.message : 'Error desconocido';
       return {
         status: 'unhealthy',
-        agent: this.agentDetail.name,
-        version: this.agentDetail.version,
+        agent: this.agentManifest.name,
+        version: '1.0.0', // TODO: Get from manifest
         llm: { status: 'unhealthy', error: errorMessage },
         uptime: process.uptime(),
         memory: process.memoryUsage(),

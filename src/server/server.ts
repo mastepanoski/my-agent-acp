@@ -52,31 +52,15 @@ export class ACPServer {
   }
 
   private setupRoutes(): void {
-    // Rutas principales del agente
-    this.app.use('/api/v1', createRoutes(this.agent));
-
-    // Ruta raíz con información básica
-    this.app.get('/', (req: Request, res: Response): void => {
-      res.json({
-        message: 'Servidor ACP activo',
-        agent: this.agent.getAgentDetail().name,
-        version: this.agent.getAgentDetail().version,
-        endpoints: {
-          health: '/api/v1/health',
-          agent: '/api/v1/agent',
-          capabilities: '/api/v1/capabilities',
-          run: '/api/v1/run',
-          stream: '/api/v1/run/stream',
-        },
-        timestamp: new Date().toISOString(),
-      });
-    });
+    // ACP routes at root level (no /api/v1 prefix)
+    this.app.use('/', createRoutes(this.agent));
 
     // Manejo de rutas no encontradas
     this.app.use('*', (req: Request, res: Response): void => {
       res.status(404).json({
-        error: 'Endpoint no encontrado',
-        path: req.originalUrl,
+        code: 'not_found',
+        message: 'Endpoint not found',
+        data: { path: req.originalUrl },
       });
     });
 
@@ -89,7 +73,9 @@ export class ACPServer {
           ip: req.ip,
         });
         res.status(500).json({
-          error: 'Error interno del servidor',
+          code: 'server_error',
+          message: 'Internal server error',
+          data: null,
         });
       }
     );

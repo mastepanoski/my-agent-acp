@@ -2,12 +2,16 @@ import 'dotenv/config';
 import { LMStudioClient } from './utils/llm-client.js';
 import { ACPAgent } from './agent/agent.js';
 import { ACPServer } from './server/server.js';
-import type { AgentDetail } from './types/agent.js';
 import type { LLMClientConfig } from './types/llm.js';
-import type { ACPServerConfig } from './types/acp.js';
+import type {
+  ACPServerConfig,
+  AgentManifest,
+  RunId,
+  SessionId,
+} from './types/acp.js';
 import { logger, logError } from './utils/logger.js';
 
-// Importar configuración del agente
+// Importar configuración del agente (legacy)
 import agentDetailJson from '../config/agent-detail.json' with { type: 'json' };
 
 async function main(): Promise<void> {
@@ -27,11 +31,26 @@ async function main(): Promise<void> {
       cors: process.env.ENABLE_CORS === 'true',
     };
 
-    const agentDetail: AgentDetail = {
-      ...agentDetailJson,
-      name: process.env.AGENT_NAME || agentDetailJson.name,
+    // Create ACP-compliant agent manifest from legacy config
+    const agentManifest: Partial<AgentManifest> = {
+      name: (process.env.AGENT_NAME || agentDetailJson.name)
+        .toLowerCase()
+        .replace(/[^a-z0-9-]/g, '-'),
       description: process.env.AGENT_DESCRIPTION || agentDetailJson.description,
-      version: process.env.AGENT_VERSION || agentDetailJson.version,
+      input_content_types: ['text/plain', 'application/json'],
+      output_content_types: ['text/plain'],
+      metadata: {
+        programming_language: 'TypeScript',
+        framework: 'Custom',
+        natural_languages: ['en', 'es'],
+        author: {
+          name: agentDetailJson.author || 'Unknown',
+          email: null,
+          url: null,
+        },
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      },
     };
 
     // Inicializar cliente LM Studio
@@ -52,37 +71,63 @@ async function main(): Promise<void> {
       modelCount: healthCheck.models?.length || 0,
     });
 
-    // Crear agente
-    const agent = new ACPAgent(llmClient, agentDetail);
-    logger.info('Agent created successfully', {
-      agentName: agentDetail.name,
-      agentVersion: agentDetail.version,
+    // Crear agente ACP-compliant
+    const agent = new ACPAgent(llmClient, agentManifest);
+    logger.info('ACP Agent created successfully', {
+      agentName: agentManifest.name,
+      endpoints: ['ping', 'agents', 'runs'],
     });
 
     // Crear y iniciar servidor
     const server = new ACPServer(agent, serverConfig);
     await server.start();
 
-    // Ejemplo de prueba automática (opcional)
+    // Ejemplo de prueba automática ACP (opcional)
     if (process.env.NODE_ENV !== 'production') {
       setTimeout(async () => {
         try {
-          logger.info('Running automatic test', { environment: 'development' });
-          const testResult = await agent.run({
-            input: '¿Cuál es la capital de Francia?',
-            type: 'question',
+          logger.info('Running ACP compliance test', {
+            environment: 'development',
           });
-          logger.info('Test completed successfully', {
-            result: testResult.result,
+
+          // Test with ACP Message format
+          const testMessages = [
+            {
+              role: 'user',
+              parts: [
+                {
+                  content_type: 'text/plain',
+                  content: '¿Cuál es la capital de Francia?',
+                  content_encoding: 'plain' as const,
+                  metadata: null,
+                },
+              ],
+              created_at: new Date().toISOString(),
+              completed_at: new Date().toISOString(),
+            },
+          ];
+
+          const runId = 'test-run-' + Date.now();
+          const sessionId = 'test-session-' + Date.now();
+
+          const testResult = await agent.runACP(
+            testMessages,
+            runId as RunId,
+            sessionId as SessionId
+          );
+          logger.info('ACP test completed successfully', {
+            runId: testResult.run_id,
+            status: testResult.status,
+            outputLength: testResult.output.length,
           });
         } catch (error) {
           const errorMessage =
             error instanceof Error ? error.message : 'Error desconocido';
           logError(
             logger,
-            'Test execution failed',
+            'ACP test execution failed',
             error instanceof Error ? error : new Error(errorMessage),
-            { context: 'automatic-test' }
+            { context: 'acp-test' }
           );
         }
       }, 2000);
